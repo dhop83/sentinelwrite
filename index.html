@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sentinel · Agent 2 Writer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Instrument+Serif:ital@0;1&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --navy:    #0A2240;
+  --navy2:   #081c36;
+  --cyan:    #00B4C8;
+  --cyan-dim: rgba(0,180,200,0.15);
+  --magenta: #C8006E;
+  --white:   #eef2f8;
+  --dim:     #6b809e;
+  --border:  rgba(0,180,200,0.2);
+  --panel:   rgba(8,28,54,0.8);
+  --mono:    'DM Mono', monospace;
+  --serif:   'Instrument Serif', serif;
+  --sans:    'Syne', sans-serif;
+}
+
+html { font-size: 15px; }
+
+body {
+  background: var(--navy2);
+  color: var(--white);
+  font-family: var(--sans);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(ellipse 70% 50% at 5% 0%, rgba(0,180,200,0.13) 0%, transparent 65%),
+    radial-gradient(ellipse 50% 70% at 95% 100%, rgba(200,0,110,0.09) 0%, transparent 60%),
+    radial-gradient(ellipse 30% 30% at 50% 50%, rgba(0,180,200,0.04) 0%, transparent 70%);
+}
+
+/* ── LAYOUT ── */
+.app { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 0 2rem 4rem; }
+
+/* ── HEADER ── */
+header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 2rem 0 2.5rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 2.5rem;
+}
+.logo { display: flex; align-items: center; gap: 1rem; }
+.logo-mark {
+  width: 36px; height: 36px;
+  background: var(--cyan);
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.logo-text { line-height: 1; }
+.logo-text .brand { font-family: var(--sans); font-size: 0.65rem; font-weight: 600; letter-spacing: 0.2em; color: var(--cyan); text-transform: uppercase; }
+.logo-text .product { font-family: var(--sans); font-size: 1.05rem; font-weight: 700; color: var(--white); }
+.header-badge {
+  font-family: var(--mono); font-size: 0.7rem; color: var(--dim);
+  border: 1px solid var(--border); border-radius: 2px; padding: 0.3rem 0.7rem;
+  letter-spacing: 0.05em;
+}
+
+/* ── API KEY GATE ── */
+#apiGate {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 70vh;
+}
+.gate-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 3rem;
+  width: 100%; max-width: 480px;
+  backdrop-filter: blur(12px);
+}
+.gate-card h2 {
+  font-family: var(--serif); font-size: 1.8rem; font-weight: 400;
+  color: var(--white); margin-bottom: 0.5rem;
+}
+.gate-card p { font-size: 0.85rem; color: var(--dim); line-height: 1.6; margin-bottom: 2rem; }
+.gate-card .field-label { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.12em; color: var(--cyan); text-transform: uppercase; margin-bottom: 0.5rem; display: block; }
+.gate-card input {
+  width: 100%; background: rgba(0,0,0,0.3); border: 1px solid var(--border);
+  border-radius: 3px; color: var(--white); font-family: var(--mono); font-size: 0.85rem;
+  padding: 0.8rem 1rem; margin-bottom: 1.2rem; outline: none;
+  transition: border-color 0.2s;
+}
+.gate-card input:focus { border-color: var(--cyan); }
+.note { font-size: 0.75rem; color: var(--dim); margin-top: 1rem; line-height: 1.5; }
+
+/* ── BUTTONS ── */
+.btn {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  font-family: var(--sans); font-size: 0.8rem; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 0.75rem 1.5rem; border: none; border-radius: 3px;
+  cursor: pointer; transition: all 0.2s; text-decoration: none;
+}
+.btn-primary { background: var(--cyan); color: var(--navy2); }
+.btn-primary:hover { background: #00cfe6; transform: translateY(-1px); }
+.btn-primary:disabled { background: var(--dim); cursor: not-allowed; transform: none; }
+.btn-ghost { background: transparent; color: var(--cyan); border: 1px solid var(--border); }
+.btn-ghost:hover { border-color: var(--cyan); background: var(--cyan-dim); }
+.btn-danger { background: transparent; color: var(--magenta); border: 1px solid rgba(200,0,110,0.25); font-size: 0.72rem; padding: 0.5rem 1rem; }
+.btn-danger:hover { background: rgba(200,0,110,0.1); }
+.btn-sm { padding: 0.5rem 1rem; font-size: 0.72rem; }
+
+/* ── MAIN APP ── */
+#mainApp { display: none; }
+
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; align-items: start; }
+@media (max-width: 700px) { .two-col { grid-template-columns: 1fr; } }
+
+/* ── PANELS ── */
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  backdrop-filter: blur(8px);
+  overflow: hidden;
+}
+.panel-header {
+  padding: 1rem 1.4rem;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.panel-title { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.12em; color: var(--cyan); text-transform: uppercase; }
+.panel-body { padding: 1.4rem; }
+
+/* ── FORM FIELDS ── */
+.field { margin-bottom: 1.2rem; }
+.field:last-child { margin-bottom: 0; }
+.field label {
+  display: block; font-family: var(--mono); font-size: 0.68rem;
+  letter-spacing: 0.1em; color: var(--dim); text-transform: uppercase; margin-bottom: 0.4rem;
+}
+.field label span.req { color: var(--magenta); margin-left: 2px; }
+.field input, .field textarea, .field select {
+  width: 100%; background: rgba(0,0,0,0.25); border: 1px solid rgba(0,180,200,0.15);
+  border-radius: 3px; color: var(--white); font-family: var(--sans); font-size: 0.85rem;
+  padding: 0.65rem 0.85rem; outline: none; transition: border-color 0.2s; resize: vertical;
+  appearance: none; -webkit-appearance: none;
+}
+.field input:focus, .field textarea:focus, .field select:focus { border-color: var(--cyan); }
+.field textarea { min-height: 70px; line-height: 1.5; }
+.field select { cursor: pointer; }
+.field select option { background: #0d2240; }
+
+/* Tags input */
+.tags-wrap {
+  display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center;
+  background: rgba(0,0,0,0.25); border: 1px solid rgba(0,180,200,0.15);
+  border-radius: 3px; padding: 0.4rem 0.6rem; min-height: 42px; cursor: text;
+  transition: border-color 0.2s;
+}
+.tags-wrap:focus-within { border-color: var(--cyan); }
+.tag {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  background: var(--cyan-dim); border: 1px solid var(--cyan);
+  border-radius: 2px; padding: 0.2rem 0.5rem;
+  font-family: var(--mono); font-size: 0.7rem; color: var(--cyan);
+}
+.tag button { background: none; border: none; color: var(--cyan); cursor: pointer; line-height: 1; padding: 0; font-size: 0.8rem; opacity: 0.7; }
+.tag button:hover { opacity: 1; }
+.tags-input {
+  background: none; border: none; outline: none; color: var(--white);
+  font-family: var(--sans); font-size: 0.85rem; min-width: 80px; flex: 1;
+}
+
+/* Toggle */
+.toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.toggle-row label { font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.1em; color: var(--dim); text-transform: uppercase; margin-bottom: 0; }
+.toggle {
+  position: relative; width: 40px; height: 22px; flex-shrink: 0;
+}
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle-slider {
+  position: absolute; inset: 0; background: rgba(0,0,0,0.4);
+  border: 1px solid var(--border); border-radius: 22px; cursor: pointer;
+  transition: 0.2s;
+}
+.toggle-slider::before {
+  content: ''; position: absolute; width: 14px; height: 14px;
+  left: 3px; top: 3px; background: var(--dim); border-radius: 50%; transition: 0.2s;
+}
+.toggle input:checked + .toggle-slider { background: rgba(0,180,200,0.2); border-color: var(--cyan); }
+.toggle input:checked + .toggle-slider::before { transform: translateX(18px); background: var(--cyan); }
+
+/* ── GENERATE BAR ── */
+.generate-bar {
+  margin: 1.5rem 0;
+  display: flex; align-items: center; gap: 1rem;
+}
+.generate-bar .btn { min-width: 180px; justify-content: center; }
+.status-msg { font-family: var(--mono); font-size: 0.75rem; color: var(--dim); }
+.status-msg.error { color: #ff6b8a; }
+.status-msg.ok { color: var(--cyan); }
+
+/* ── SPINNER ── */
+.spinner {
+  width: 14px; height: 14px; border: 2px solid rgba(10,34,64,0.4);
+  border-top-color: var(--navy2); border-radius: 50%;
+  animation: spin 0.7s linear infinite; display: none;
+}
+.btn-primary.loading .spinner { display: block; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── OUTPUT AREA ── */
+#outputArea { display: none; margin-top: 1.5rem; }
+
+.output-tabs {
+  display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 0;
+}
+.tab-btn {
+  font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em;
+  text-transform: uppercase; padding: 0.75rem 1.2rem;
+  background: none; border: none; color: var(--dim); cursor: pointer;
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+  transition: all 0.15s;
+}
+.tab-btn.active { color: var(--cyan); border-bottom-color: var(--cyan); }
+.tab-btn:hover:not(.active) { color: var(--white); }
+
+.tab-pane { display: none; padding: 1.4rem; }
+.tab-pane.active { display: block; }
+
+/* Output blocks */
+.output-block { margin-bottom: 1.5rem; }
+.output-block:last-child { margin-bottom: 0; }
+.output-label {
+  font-family: var(--mono); font-size: 0.65rem; letter-spacing: 0.15em;
+  color: var(--magenta); text-transform: uppercase; margin-bottom: 0.5rem;
+}
+.output-content {
+  background: rgba(0,0,0,0.25); border: 1px solid rgba(0,180,200,0.1);
+  border-radius: 3px; padding: 1rem; font-size: 0.85rem; line-height: 1.7;
+  white-space: pre-wrap; word-break: break-word; color: var(--white);
+  font-family: var(--sans);
+  position: relative;
+}
+.output-content.mono-out { font-family: var(--mono); font-size: 0.78rem; color: #a8c4d8; }
+.copy-btn {
+  position: absolute; top: 0.6rem; right: 0.6rem;
+  font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.08em;
+  text-transform: uppercase; background: rgba(0,180,200,0.12);
+  border: 1px solid var(--border); color: var(--cyan);
+  border-radius: 2px; padding: 0.25rem 0.6rem; cursor: pointer;
+  transition: all 0.15s;
+}
+.copy-btn:hover { background: var(--cyan-dim); }
+.copy-btn.copied { color: #4ade80; border-color: #4ade80; }
+
+/* Email cards */
+.email-card {
+  background: rgba(0,0,0,0.2); border: 1px solid var(--border);
+  border-radius: 3px; margin-bottom: 1rem; overflow: hidden;
+}
+.email-card-header {
+  background: rgba(0,180,200,0.08); padding: 0.7rem 1rem;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.email-num { font-family: var(--mono); font-size: 0.68rem; color: var(--cyan); letter-spacing: 0.1em; }
+.email-card-body { padding: 1rem; }
+.email-field { margin-bottom: 0.75rem; }
+.email-field:last-child { margin-bottom: 0; }
+.email-field-label { font-family: var(--mono); font-size: 0.62rem; color: var(--dim); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 0.25rem; }
+.email-field-val { font-size: 0.83rem; line-height: 1.6; color: var(--white); }
+
+/* Quality gate */
+.gate-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+@media (max-width: 600px) { .gate-grid { grid-template-columns: 1fr; } }
+.gate-item {
+  display: flex; align-items: flex-start; gap: 0.6rem;
+  background: rgba(0,0,0,0.2); border: 1px solid var(--border);
+  border-radius: 3px; padding: 0.7rem 0.8rem; font-size: 0.78rem;
+}
+.gate-item.pass { border-color: rgba(74,222,128,0.3); }
+.gate-item.fail { border-color: rgba(255,107,138,0.4); }
+.gate-icon { flex-shrink: 0; font-size: 0.85rem; line-height: 1.4; }
+.gate-text { line-height: 1.4; color: var(--dim); }
+.gate-item.pass .gate-text { color: var(--white); }
+.gate-item.fail .gate-text { color: #ff6b8a; }
+
+/* Divider */
+.divider { height: 1px; background: var(--border); margin: 1.5rem 0; }
+
+/* Session bar */
+.session-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.6rem 1rem; background: rgba(0,0,0,0.2);
+  border: 1px solid var(--border); border-radius: 3px;
+  margin-bottom: 1.5rem; font-family: var(--mono); font-size: 0.7rem;
+}
+.session-status { display: flex; align-items: center; gap: 0.5rem; color: var(--dim); }
+.dot { width: 6px; height: 6px; border-radius: 50%; background: var(--cyan); flex-shrink: 0; animation: pulse 2s ease-in-out infinite; }
+@keyframes pulse { 0%,100% { opacity:1; } 50% { opacity: 0.4; } }
+
+/* Tooltip */
+.hint { font-size: 0.72rem; color: var(--dim); margin-top: 0.3rem; line-height: 1.4; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- HEADER -->
+  <header>
+    <div class="logo">
+      <div class="logo-mark"></div>
+      <div class="logo-text">
+        <div class="brand">Thales Sentinel</div>
+        <div class="product">Agent 2 · Writer</div>
+      </div>
+    </div>
+    <div class="header-badge">Content Engine v1.0</div>
+  </header>
+
+  <!-- API KEY GATE -->
+  <div id="apiGate">
+    <div class="gate-card">
+      <h2>Enter API Key</h2>
+      <p>Your Anthropic API key is used only in this browser session to call Claude directly. It is never stored, logged, or transmitted anywhere except the Anthropic API.</p>
+      <label class="field-label">Anthropic API Key</label>
+      <input type="password" id="apiKeyInput" placeholder="sk-ant-..." autocomplete="off" />
+      <button class="btn btn-primary" onclick="activateApp()" style="width:100%; justify-content:center;">
+        Activate Session
+      </button>
+      <p class="note">Key is held in memory only. Refreshing the page clears it. Never commit this key to GitHub — enter it here each session instead.</p>
+    </div>
+  </div>
+
+  <!-- MAIN APP -->
+  <div id="mainApp">
+
+    <!-- SESSION BAR -->
+    <div class="session-bar">
+      <div class="session-status">
+        <div class="dot"></div>
+        <span>Session active · API key in memory only</span>
+      </div>
+      <button class="btn btn-danger" onclick="clearSession()">End Session</button>
+    </div>
+
+    <!-- BRIEF FORM + SIDEBAR -->
+    <div class="two-col">
+
+      <!-- LEFT: BRIEF FORM -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Content Brief</span>
+        </div>
+        <div class="panel-body">
+
+          <div class="field">
+            <label>Angle / Thesis <span class="req">*</span></label>
+            <textarea id="f_angle" rows="3" placeholder="e.g. When a PE-backed acquirer consolidates two software companies, entitlement fragmentation is the revenue leak no one budgets for"></textarea>
+          </div>
+
+          <div class="field">
+            <label>Target Persona <span class="req">*</span></label>
+            <input type="text" id="f_persona" placeholder="e.g. VP Product at PE-backed ISV, 6–24 months post-acquisition" />
+          </div>
+
+          <div class="field">
+            <label>Funnel Stage <span class="req">*</span></label>
+            <select id="f_funnel">
+              <option value="">Select stage</option>
+              <option value="tofu">TOFU — Awareness</option>
+              <option value="mofu">MOFU — Consideration</option>
+              <option value="bofu">BOFU — Decision</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Sentinel Products to Feature</label>
+            <div class="tags-wrap" id="productsWrap" onclick="document.getElementById('productsInput').focus()">
+              <input class="tags-input" id="productsInput" placeholder="Type product, press Enter" />
+            </div>
+            <div class="hint">e.g. Sentinel EMS · Sentinel LDK · Sentinel Pulse · Sentinel Connect · Sentinel Portals</div>
+          </div>
+
+          <div class="field">
+            <label>Proof Points / Named Customers</label>
+            <div class="tags-wrap" id="proofWrap" onclick="document.getElementById('proofInput').focus()">
+              <input class="tags-input" id="proofInput" placeholder="Type proof point, press Enter" />
+            </div>
+            <div class="hint">e.g. NVIDIA/Mellanox consolidated in 90 days · Extreme Networks reduced SKUs 40%</div>
+          </div>
+
+          <div class="field">
+            <label>Primary CTA</label>
+            <input type="text" id="f_cta" placeholder="e.g. Download the M&amp;A Entitlement White Paper" />
+          </div>
+
+          <div class="field">
+            <label>SEO Keyword (Blog)</label>
+            <input type="text" id="f_keyword" placeholder="e.g. entitlement management after acquisition" />
+          </div>
+
+          <div class="field">
+            <div class="toggle-row">
+              <label>Competitive framing (Revenera displacement)</label>
+              <label class="toggle">
+                <input type="checkbox" id="f_competitive" />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div class="hint" style="margin-top:0.5rem;">Only for MOFU/BOFU. Factual contrast, not attack language.</div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- RIGHT: GUIDE -->
+      <div>
+        <div class="panel" style="margin-bottom:1rem;">
+          <div class="panel-header"><span class="panel-title">Voice Rules (Active)</span></div>
+          <div class="panel-body" style="font-size:0.8rem; line-height:1.7; color: var(--dim);">
+            <div style="margin-bottom:0.6rem;"><span style="color:var(--cyan);">01</span> &nbsp;No weak verbs — leverage, utilize, empower, streamline, drive (abstract)</div>
+            <div style="margin-bottom:0.6rem;"><span style="color:var(--cyan);">02</span> &nbsp;No trailing sentence constructions</div>
+            <div style="margin-bottom:0.6rem;"><span style="color:var(--cyan);">03</span> &nbsp;No generic B2B language — robust, best-in-class, holistic, end-to-end</div>
+            <div style="margin-bottom:0.6rem;"><span style="color:var(--cyan);">04</span> &nbsp;No product in first 20% of blog — problem first</div>
+            <div style="margin-bottom:0.6rem;"><span style="color:var(--cyan);">05</span> &nbsp;Hypothesis language for unconfirmed claims</div>
+            <div style="margin-bottom:0.6rem;"><span style="color:var(--cyan);">06</span> &nbsp;M&amp;A content must include revenue growth angle, not cost only</div>
+            <div><span style="color:var(--cyan);">07</span> &nbsp;Blog 900–1,400w · Email 180–300w · LinkedIn 150–280w</div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header"><span class="panel-title">Output Package</span></div>
+          <div class="panel-body" style="font-size:0.8rem; line-height:1.8; color: var(--dim);">
+            <div>📄 &nbsp;Long-form blog post (WordPress HTML)</div>
+            <div>✉️ &nbsp;3-email nurture sequence</div>
+            <div>🔗 &nbsp;LinkedIn post</div>
+            <div style="margin-top:0.8rem; font-size:0.75rem; color: var(--dim);">All produced in a single API call from the brief above.</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- GENERATE BAR -->
+    <div class="generate-bar">
+      <button class="btn btn-primary" id="generateBtn" onclick="generate()">
+        <div class="spinner" id="spinner"></div>
+        <span id="generateLabel">Generate Content Package</span>
+      </button>
+      <span class="status-msg" id="statusMsg"></span>
+    </div>
+
+    <!-- OUTPUT AREA -->
+    <div id="outputArea">
+      <div class="panel">
+        <div class="output-tabs">
+          <button class="tab-btn active" onclick="switchTab('blog', this)">Blog Post</button>
+          <button class="tab-btn" onclick="switchTab('emails', this)">Email Sequence</button>
+          <button class="tab-btn" onclick="switchTab('linkedin', this)">LinkedIn</button>
+          <button class="tab-btn" onclick="switchTab('gate', this)">Quality Gate</button>
+          <button class="tab-btn" onclick="switchTab('raw', this)">Raw JSON</button>
+        </div>
+
+        <!-- BLOG -->
+        <div class="tab-pane active" id="tab-blog">
+          <div class="output-block">
+            <div class="output-label">Title</div>
+            <div class="output-content" id="out-title" style="position:relative;">
+              <button class="copy-btn" onclick="copyBlock('out-title', this)">Copy</button>
+            </div>
+          </div>
+          <div class="output-block">
+            <div class="output-label">Meta Description</div>
+            <div class="output-content" id="out-meta" style="position:relative;">
+              <button class="copy-btn" onclick="copyBlock('out-meta', this)">Copy</button>
+            </div>
+          </div>
+          <div class="output-block">
+            <div class="output-label">Body HTML (WordPress-ready)</div>
+            <div class="output-content mono-out" id="out-html" style="position:relative; max-height: 400px; overflow-y:auto;">
+              <button class="copy-btn" onclick="copyBlock('out-html', this)">Copy</button>
+            </div>
+          </div>
+          <div style="font-family: var(--mono); font-size: 0.7rem; color: var(--dim);">Word count: <span id="out-wordcount">—</span></div>
+        </div>
+
+        <!-- EMAILS -->
+        <div class="tab-pane" id="tab-emails">
+          <div id="emailCards"></div>
+        </div>
+
+        <!-- LINKEDIN -->
+        <div class="tab-pane" id="tab-linkedin">
+          <div class="output-block">
+            <div class="output-label">LinkedIn Post</div>
+            <div class="output-content" id="out-linkedin" style="position:relative;">
+              <button class="copy-btn" onclick="copyBlock('out-linkedin', this)">Copy</button>
+            </div>
+          </div>
+          <div style="font-family: var(--mono); font-size: 0.7rem; color: var(--dim); margin-top:0.5rem;">Place link in first comment, not in the post body.</div>
+        </div>
+
+        <!-- QUALITY GATE -->
+        <div class="tab-pane" id="tab-gate">
+          <div class="gate-grid" id="gateGrid"></div>
+        </div>
+
+        <!-- RAW JSON -->
+        <div class="tab-pane" id="tab-raw">
+          <div class="output-content mono-out" id="out-raw" style="position:relative; max-height:500px; overflow-y:auto;">
+            <button class="copy-btn" onclick="copyBlock('out-raw', this)">Copy</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div><!-- /mainApp -->
+</div><!-- /app -->
+
+<script>
+// ── STATE ──────────────────────────────────────────────────────────────
+let API_KEY = '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';
+const tagState = { products: [], proof: [] };
+
+// ── API KEY GATE ────────────────────────────────────────────────────────
+function activateApp() {
+  const key = document.getElementById('apiKeyInput').value.trim();
+  if (!key.startsWith('sk-')) {
+    alert('Enter a valid Anthropic API key (starts with sk-)');
+    return;
+  }
+  API_KEY = key;
+  document.getElementById('apiGate').style.display = 'none';
+  document.getElementById('mainApp').style.display = 'block';
+}
+
+document.getElementById('apiKeyInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') activateApp();
+});
+
+function clearSession() {
+  if (!confirm('End session and clear API key?')) return;
+  API_KEY = '';
+  location.reload();
+}
+
+// ── TAG INPUTS ───────────────────────────────────────────────────────────
+function initTags(inputId, wrapId, stateKey) {
+  const input = document.getElementById(inputId);
+  input.addEventListener('keydown', e => {
+    if ((e.key === 'Enter' || e.key === ',') && input.value.trim()) {
+      e.preventDefault();
+      addTag(stateKey, input.value.trim(), wrapId, inputId);
+      input.value = '';
+    } else if (e.key === 'Backspace' && !input.value && tagState[stateKey].length) {
+      removeTag(stateKey, tagState[stateKey].length - 1, wrapId, inputId);
+    }
+  });
+}
+
+function addTag(key, val, wrapId, inputId) {
+  if (tagState[key].includes(val)) return;
+  tagState[key].push(val);
+  renderTags(key, wrapId, inputId);
+}
+
+function removeTag(key, idx, wrapId, inputId) {
+  tagState[key].splice(idx, 1);
+  renderTags(key, wrapId, inputId);
+}
+
+function renderTags(key, wrapId, inputId) {
+  const wrap = document.getElementById(wrapId);
+  const input = document.getElementById(inputId);
+  wrap.innerHTML = '';
+  tagState[key].forEach((t, i) => {
+    const tag = document.createElement('span');
+    tag.className = 'tag';
+    tag.innerHTML = `${t} <button onclick="removeTag('${key}',${i},'${wrapId}','${inputId}')">&times;</button>`;
+    wrap.appendChild(tag);
+  });
+  wrap.appendChild(input);
+}
+
+initTags('productsInput', 'productsWrap', 'products');
+initTags('proofInput', 'proofWrap', 'proof');
+
+// ── TABS ─────────────────────────────────────────────────────────────────
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+}
+
+// ── COPY ─────────────────────────────────────────────────────────────────
+function copyBlock(elId, btn) {
+  const el = document.getElementById(elId);
+  const text = el.innerText.replace(/^Copy\n/, '').trim();
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'Copied ✓';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+// ── SYSTEM PROMPT ────────────────────────────────────────────────────────
+const SYSTEM_PROMPT = `You are the content writer for Thales Software Monetization (Sentinel product line). You write B2B content for software licensing, entitlement management, and monetization audiences.
+
+PRIMARY AUDIENCES
+VP Product, VP Engineering, Chief Revenue Officer at ISVs, industrial automation OEMs, PE-backed software companies, and enterprise software vendors navigating M&A. Write for the primary buyer unless the brief specifies otherwise.
+
+PRODUCTS YOU REPRESENT
+Sentinel LDK (software licensing), Sentinel EMS (entitlement management), Sentinel Pulse (usage intelligence), Sentinel Portals (self-service), Sentinel Connect (CRM/ERP integration). Do not invent capabilities. Do not claim metrics not in the brief.
+
+PRIMARY DISPLACEMENT TARGET
+Revenera (a Flexera division). When competitive framing is requested, use factual contrast — never attack language, never unverified claims. Frame around what Sentinel enables that Revenera's architecture constrains. Only use competitive framing for mofu/bofu content.
+
+VOICE RULES — NON-NEGOTIABLE
+1. No weak verbs: leverage, utilize, enable (standalone), empower, facilitate, drive (abstract), streamline. Replace with the specific action.
+2. No trailing sentence constructions. Strong word at or near end of sentence.
+3. No generic B2B language: best-in-class, world-class, robust solution, comprehensive platform, holistic approach, end-to-end.
+4. No product in first 20% of blog post. Problem must be fully established first.
+5. Hypothesis language for unconfirmed claims: "the pattern suggests", "most companies in this position report". Never assert as fact what is not verified.
+6. M&A content must include both cost reduction AND revenue growth narrative.
+7. Length: Blog 900–1,400 words. Each email 180–300 words. LinkedIn 150–280 words.
+8. Never use "contact us" as the primary CTA.
+9. LinkedIn post: line 1 is a declarative sentence, no question mark.
+10. Do not use the word "solution" as a noun — name the specific product or outcome.
+
+BLOG STRUCTURE
+Section 1 (opening, no product): Name the problem in reader's language. Create tension. Max 2 paragraphs.
+Section 2 (cost of inaction): Real-world consequences — lost revenue, compliance exposure, deal friction, churn. Use proof points from brief.
+Section 3 (strategic frame): What success looks like. Sentinel can be named here.
+Section 4 (mechanism): How Sentinel specifically solves this. One concrete capability per paragraph, no feature lists.
+Section 5 (close): One clear next action using the specified CTA.
+
+EMAIL SEQUENCE STRUCTURE
+Email 1 (Day 0): Validate the problem. Mirror their situation. Zero product selling. CTA: read the blog/guide.
+Email 2 (Day 4): Social proof — what others in their position did. Evidence-based tone. CTA: case study or research.
+Email 3 (Day 9): Make the platform case. Sentinel is the hero. Direct, no hedging. CTA: book assessment or demo.
+
+LINKEDIN STRUCTURE
+Line 1: Single declarative sentence that stops scroll. No question mark.
+Lines 2–4: Three sentences of tension or proof. Short. No conjunctions.
+Lines 5–8: Resolution or key insight. One to two sentences per idea. White space between each.
+Final line: One CTA. State "Link in comments."
+
+OUTPUT FORMAT
+Return ONLY a valid JSON object with exactly this structure. No commentary, no markdown fences, no preamble:
+{
+  "blog_post": {
+    "title": "string",
+    "meta_description": "string (max 155 chars)",
+    "body_html": "string (WordPress-ready HTML, use h2/h3/p/ul/li tags)",
+    "word_count": integer
+  },
+  "nurture_sequence": [
+    { "email": 1, "subject_line": "string", "preview_text": "string (max 90 chars)", "body": "string" },
+    { "email": 2, "subject_line": "string", "preview_text": "string (max 90 chars)", "body": "string" },
+    { "email": 3, "subject_line": "string", "preview_text": "string (max 90 chars)", "body": "string" }
+  ],
+  "linkedin_post": "string"
+}`;
+
+// ── QUALITY GATE ──────────────────────────────────────────────────────────
+const GATE_CHECKS = [
+  { id: 'g1', label: 'Blog opens with reader problem — no product in first 20%',
+    test: (d) => {
+      const html = d.blog_post?.body_html || '';
+      const first20pct = html.slice(0, Math.floor(html.length * 0.2)).toLowerCase();
+      return !first20pct.includes('sentinel');
+    }},
+  { id: 'g2', label: 'No weak verbs in blog (leverage, utilize, empower, streamline)',
+    test: (d) => {
+      const text = (d.blog_post?.body_html || '').toLowerCase();
+      return !/(leverage|utilize|empower|streamline)\b/.test(text);
+    }},
+  { id: 'g3', label: 'Blog within 900–1,400 words',
+    test: (d) => { const wc = d.blog_post?.word_count || 0; return wc >= 900 && wc <= 1400; }},
+  { id: 'g4', label: 'Meta description ≤ 155 characters',
+    test: (d) => (d.blog_post?.meta_description || '').length <= 155 },
+  { id: 'g5', label: 'Email 1 has no product sell',
+    test: (d) => {
+      const e1 = (d.nurture_sequence?.[0]?.body || '').toLowerCase();
+      return !e1.includes('sentinel ldk') && !e1.includes('sentinel ems') && !e1.includes('book a demo') && !e1.includes('schedule a');
+    }},
+  { id: 'g6', label: 'Email 3 has a specific CTA (not just "contact us")',
+    test: (d) => {
+      const e3 = (d.nurture_sequence?.[2]?.body || '').toLowerCase();
+      return e3.includes('http') || e3.includes('demo') || e3.includes('assessment') || e3.includes('download') || e3.includes('register');
+    }},
+  { id: 'g7', label: 'All 3 emails within 180–300 words each',
+    test: (d) => {
+      const seq = d.nurture_sequence || [];
+      return seq.every(e => { const wc = (e.body || '').split(/\s+/).length; return wc >= 140 && wc <= 320; });
+    }},
+  { id: 'g8', label: 'LinkedIn post line 1 has no question mark',
+    test: (d) => {
+      const li = d.linkedin_post || '';
+      const line1 = li.split('\n')[0];
+      return !line1.includes('?');
+    }},
+  { id: 'g9', label: 'LinkedIn within 150–280 words',
+    test: (d) => { const wc = (d.linkedin_post || '').split(/\s+/).length; return wc >= 120 && wc <= 300; }},
+  { id: 'g10', label: 'No "contact us" as sole CTA anywhere',
+    test: (d) => {
+      const all = JSON.stringify(d).toLowerCase();
+      const hasContactUs = all.includes('contact us');
+      const hasOtherCTA = all.includes('demo') || all.includes('download') || all.includes('assessment') || all.includes('register');
+      return !hasContactUs || hasOtherCTA;
+    }},
+];
+
+// ── GENERATE ─────────────────────────────────────────────────────────────
+async function generate() {
+  const angle   = document.getElementById('f_angle').value.trim();
+  const persona = document.getElementById('f_persona').value.trim();
+  const funnel  = document.getElementById('f_funnel').value;
+  const cta     = document.getElementById('f_cta').value.trim();
+  const keyword = document.getElementById('f_keyword').value.trim();
+  const competitive = document.getElementById('f_competitive').checked;
+  const products = tagState.products;
+  const proof    = tagState.proof;
+
+  if (!angle || !persona || !funnel) {
+    setStatus('Angle, Persona, and Funnel Stage are required.', 'error');
+    return;
+  }
+
+  const brief = {
+    angle, persona, funnel_stage: funnel,
+    competitive,
+    products: products.length ? products : ['Sentinel EMS', 'Sentinel LDK'],
+    proof_points: proof,
+    cta: cta || 'Book a Sentinel assessment',
+    keyword: keyword || ''
+  };
+
+  const userMsg = `Generate a complete content package from this brief:
+
+${JSON.stringify(brief, null, 2)}
+
+Return only the JSON object as specified. No preamble, no markdown fences.`;
+
+  setLoading(true);
+  setStatus('Generating content package…', '');
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': API_KEY,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 8000,
+        system: SYSTEM_PROMPT,
+        messages: [{ role: 'user', content: userMsg }]
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error?.message || `API error ${res.status}`);
+    }
+
+    const data = await res.json();
+    const rawText = data.content.find(b => b.type === 'text')?.text || '';
+
+    // Parse JSON — strip any accidental fences
+    const clean = rawText.replace(/^```json\s*/,'').replace(/\s*```$/,'').trim();
+    const parsed = JSON.parse(clean);
+
+    renderOutput(parsed, clean);
+    setStatus('Content package ready.', 'ok');
+
+  } catch(e) {
+    setStatus('Error: ' + e.message, 'error');
+  } finally {
+    setLoading(false);
+  }
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────────
+function renderOutput(data, rawJson) {
+  // Blog
+  setText('out-title', data.blog_post?.title || '—');
+  setText('out-meta', data.blog_post?.meta_description || '—');
+  setText('out-html', data.blog_post?.body_html || '—');
+  document.getElementById('out-wordcount').textContent = data.blog_post?.word_count || '—';
+
+  // Emails
+  const emailCards = document.getElementById('emailCards');
+  emailCards.innerHTML = '';
+  const dayMap = ['Day 0', 'Day 4', 'Day 9'];
+  const purposeMap = ['Validate the problem — no sell', 'Social proof', 'Platform case — Sentinel hero'];
+  (data.nurture_sequence || []).forEach((email, i) => {
+    const card = document.createElement('div');
+    card.className = 'email-card';
+    card.innerHTML = `
+      <div class="email-card-header">
+        <span class="email-num">EMAIL ${email.email} · ${dayMap[i]}</span>
+        <span style="font-family:var(--mono);font-size:0.65rem;color:var(--dim);">${purposeMap[i]}</span>
+      </div>
+      <div class="email-card-body">
+        <div class="email-field">
+          <div class="email-field-label">Subject Line</div>
+          <div class="email-field-val">${escHtml(email.subject_line || '')}</div>
+        </div>
+        <div class="email-field">
+          <div class="email-field-label">Preview Text</div>
+          <div class="email-field-val" style="color:var(--dim);font-size:0.8rem;">${escHtml(email.preview_text || '')}</div>
+        </div>
+        <div class="email-field">
+          <div class="email-field-label">Body</div>
+          <div class="email-field-val" style="white-space:pre-wrap;">${escHtml(email.body || '')}</div>
+        </div>
+      </div>`;
+    emailCards.appendChild(card);
+  });
+
+  // LinkedIn
+  setText('out-linkedin', data.linkedin_post || '—');
+
+  // Raw
+  setText('out-raw', rawJson);
+
+  // Quality gate
+  const gateGrid = document.getElementById('gateGrid');
+  gateGrid.innerHTML = '';
+  GATE_CHECKS.forEach((check, i) => {
+    let pass = false;
+    try { pass = check.test(data); } catch(e) { pass = false; }
+    const item = document.createElement('div');
+    item.className = 'gate-item ' + (pass ? 'pass' : 'fail');
+    item.innerHTML = `<span class="gate-icon">${pass ? '✓' : '✗'}</span><span class="gate-text">${i+1}. ${check.label}</span>`;
+    gateGrid.appendChild(item);
+  });
+
+  document.getElementById('outputArea').style.display = 'block';
+  document.getElementById('outputArea').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────────
+function setText(id, text) {
+  const el = document.getElementById(id);
+  const copyBtn = el.querySelector('.copy-btn');
+  // Clear text nodes only, preserve copy button
+  Array.from(el.childNodes).forEach(n => { if (n !== copyBtn) n.remove(); });
+  el.insertBefore(document.createTextNode(text), copyBtn || null);
+}
+
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function setLoading(on) {
+  const btn = document.getElementById('generateBtn');
+  const lbl = document.getElementById('generateLabel');
+  const sp  = document.getElementById('spinner');
+  btn.disabled = on;
+  btn.classList.toggle('loading', on);
+  sp.style.display = on ? 'block' : 'none';
+  lbl.textContent = on ? 'Generating…' : 'Generate Content Package';
+}
+
+function setStatus(msg, type) {
+  const el = document.getElementById('statusMsg');
+  el.textContent = msg;
+  el.className = 'status-msg' + (type ? ' ' + type : '');
+}
+</script>
+</body>
+</html>
