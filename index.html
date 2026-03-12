@@ -235,6 +235,11 @@ header {
 .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--cyan); flex-shrink: 0; animation: pulse 2s ease-in-out infinite; }
 @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
 
+/* Mode selector */
+.mode-btn { font-family: var(--mono); font-size: 0.68rem; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; padding: 0.3rem 0.75rem; background: transparent; border: 1px solid var(--border); border-radius: 2px; color: var(--dim); cursor: pointer; transition: all 0.15s; }
+.mode-btn:hover { color: var(--white); border-color: rgba(0,180,200,0.4); }
+.mode-btn.active { background: var(--cyan-dim); border-color: var(--cyan); color: var(--cyan); }
+
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
@@ -342,7 +347,7 @@ header {
         </div>
         <div class="panel">
           <div class="panel-header"><span class="panel-title">Output Package</span></div>
-          <div class="panel-body" style="font-size:0.8rem; line-height:1.8; color: var(--dim);">
+          <div class="panel-body" id="outputPackagePanel" style="font-size:0.8rem; line-height:1.8; color: var(--dim);">
             <div>📄 &nbsp;Long-form blog post (WordPress HTML)</div>
             <div>✉️ &nbsp;3-email nurture sequence</div>
             <div>🔗 &nbsp;LinkedIn post</div>
@@ -355,67 +360,131 @@ header {
 
     <!-- BRIEF FORM (FULL WIDTH) -->
     <div class="panel" style="margin-bottom:1.5rem;">
-      <div class="panel-header"><span class="panel-title">Content Brief</span></div>
-      <div class="panel-body">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;">
-
-          <div class="field">
-            <label>Angle / Thesis <span class="req">*</span></label>
-            <textarea id="f_angle" rows="3" placeholder="e.g. When a PE-backed acquirer consolidates two software companies, entitlement fragmentation is the revenue leak no one budgets for"></textarea>
-          </div>
-
-          <div class="field">
-            <label>Target Persona <span class="req">*</span></label>
-            <input type="text" id="f_persona" placeholder="e.g. VP Product at PE-backed ISV, 6–24 months post-acquisition" />
-          </div>
-
-          <div class="field">
-            <label>Funnel Stage <span class="req">*</span></label>
-            <select id="f_funnel">
-              <option value="">Select stage</option>
-              <option value="tofu">TOFU — Awareness</option>
-              <option value="mofu">MOFU — Consideration</option>
-              <option value="bofu">BOFU — Decision</option>
-            </select>
-          </div>
-
-          <div class="field">
-            <label>Primary CTA</label>
-            <input type="text" id="f_cta" placeholder="e.g. Download the M&amp;A Entitlement White Paper" />
-          </div>
-
-          <div class="field">
-            <label>Sentinel Products to Feature</label>
-            <div class="tags-wrap" id="productsWrap" onclick="document.getElementById('productsInput').focus()">
-              <input class="tags-input" id="productsInput" placeholder="Type product, press Enter" />
-            </div>
-            <div class="hint">Sentinel EMS · Sentinel LDK · Sentinel Pulse · Sentinel Connect · Sentinel Portals</div>
-          </div>
-
-          <div class="field">
-            <label>Proof Points / Named Customers</label>
-            <div class="tags-wrap" id="proofWrap" onclick="document.getElementById('proofInput').focus()">
-              <input class="tags-input" id="proofInput" placeholder="Type proof point, press Enter" />
-            </div>
-            <div class="hint">e.g. NVIDIA/Mellanox · Extreme Networks reduced SKUs 40%</div>
-          </div>
-
-          <div class="field">
-            <label>SEO Keyword (Blog)</label>
-            <input type="text" id="f_keyword" placeholder="e.g. entitlement management after acquisition" />
-          </div>
-
-          <div class="field" style="display:flex;align-items:center;">
-            <div class="toggle-row" style="width:100%;">
-              <label>Competitive framing (Revenera displacement)</label>
-              <label class="toggle">
-                <input type="checkbox" id="f_competitive" />
-                <span class="toggle-slider"></span>
-              </label>
-            </div>
-          </div>
-
+      <div class="panel-header">
+        <span class="panel-title">Content Brief</span>
+        <!-- MODE SELECTOR -->
+        <div style="display:flex;gap:0.4rem;">
+          <button class="mode-btn active" id="modeBtn-package" onclick="setMode('package')">Content Package</button>
+          <button class="mode-btn" id="modeBtn-edu" onclick="setMode('edu')">Educational Article</button>
         </div>
+      </div>
+      <div class="panel-body">
+
+        <!-- ── MODE: CONTENT PACKAGE ── -->
+        <div id="fields-package">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;">
+
+            <div class="field">
+              <label>Angle / Thesis <span class="req">*</span></label>
+              <textarea id="f_angle" rows="3" placeholder="e.g. When a PE-backed acquirer consolidates two software companies, entitlement fragmentation is the revenue leak no one budgets for"></textarea>
+            </div>
+
+            <div class="field">
+              <label>Target Persona <span class="req">*</span></label>
+              <input type="text" id="f_persona" placeholder="e.g. VP Product at PE-backed ISV, 6–24 months post-acquisition" />
+            </div>
+
+            <div class="field">
+              <label>Funnel Stage <span class="req">*</span></label>
+              <select id="f_funnel">
+                <option value="">Select stage</option>
+                <option value="tofu">TOFU — Awareness</option>
+                <option value="mofu">MOFU — Consideration</option>
+                <option value="bofu">BOFU — Decision</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label>Primary CTA</label>
+              <input type="text" id="f_cta" placeholder="e.g. Download the M&amp;A Entitlement White Paper" />
+            </div>
+
+            <div class="field">
+              <label>Sentinel Products to Feature</label>
+              <div class="tags-wrap" id="productsWrap" onclick="document.getElementById('productsInput').focus()">
+                <input class="tags-input" id="productsInput" placeholder="Type product, press Enter" />
+              </div>
+              <div class="hint">Sentinel EMS · Sentinel LDK · Sentinel Pulse · Sentinel Connect · Sentinel Portals</div>
+            </div>
+
+            <div class="field">
+              <label>Proof Points / Named Customers</label>
+              <div class="tags-wrap" id="proofWrap" onclick="document.getElementById('proofInput').focus()">
+                <input class="tags-input" id="proofInput" placeholder="Type proof point, press Enter" />
+              </div>
+              <div class="hint">e.g. NVIDIA/Mellanox · Extreme Networks reduced SKUs 40%</div>
+            </div>
+
+            <div class="field">
+              <label>SEO Keyword (Blog)</label>
+              <input type="text" id="f_keyword" placeholder="e.g. entitlement management after acquisition" />
+            </div>
+
+            <div class="field" style="display:flex;align-items:center;">
+              <div class="toggle-row" style="width:100%;">
+                <label>Competitive framing (Revenera displacement)</label>
+                <label class="toggle">
+                  <input type="checkbox" id="f_competitive" />
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ── MODE: EDUCATIONAL ARTICLE ── -->
+        <div id="fields-edu" style="display:none;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;">
+
+            <div class="field" style="grid-column:1/-1;">
+              <label>Topic / Concept <span class="req">*</span></label>
+              <input type="text" id="e_topic" placeholder="e.g. Software License Metering · Concurrent Licensing · Entitlement Migration" />
+              <div class="hint">The specific licensing, entitlement, or monetization concept the article will cover.</div>
+            </div>
+
+            <div class="field">
+              <label>Primary Audience Role <span class="req">*</span></label>
+              <input type="text" id="e_audience" placeholder="e.g. VP Engineering at mid-market ISV" />
+            </div>
+
+            <div class="field">
+              <label>SEO Keyword</label>
+              <input type="text" id="e_keyword" placeholder="e.g. concurrent license management enterprise" />
+            </div>
+
+            <div class="field">
+              <label>Key Decision Scenarios to Cover</label>
+              <textarea id="e_scenarios" rows="3" placeholder="e.g. On-prem vs cloud deployment · Per-seat vs usage-based · What breaks at scale"></textarea>
+              <div class="hint">Optional. Specific decision points, failure modes, or tradeoffs the article must address.</div>
+            </div>
+
+            <div class="field">
+              <label>Proof Points / Named Customers</label>
+              <div class="tags-wrap" id="proofWrapEdu" onclick="document.getElementById('proofInputEdu').focus()">
+                <input class="tags-input" id="proofInputEdu" placeholder="Type proof point, press Enter" />
+              </div>
+              <div class="hint">Evidence to weave into the Risk or Proof sections.</div>
+            </div>
+
+            <div class="field">
+              <label>Primary CTA</label>
+              <input type="text" id="e_cta" placeholder="e.g. Download the Entitlement Architecture Guide" />
+            </div>
+
+            <div class="field" style="grid-column:1/-1;display:flex;align-items:center;">
+              <div class="toggle-row" style="width:100%;">
+                <label>Include competitive context (Revenera)</label>
+                <label class="toggle">
+                  <input type="checkbox" id="e_competitive" />
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
       </div>
     </div>
 
@@ -431,45 +500,89 @@ header {
     <!-- OUTPUT -->
     <div id="outputArea">
       <div class="panel">
-        <div class="output-tabs">
-          <button class="tab-btn active" onclick="switchTab('blog',this)">Blog Post</button>
-          <button class="tab-btn" onclick="switchTab('emails',this)">Email Sequence</button>
-          <button class="tab-btn" onclick="switchTab('linkedin',this)">LinkedIn</button>
-          <button class="tab-btn" onclick="switchTab('gate',this)">Quality Gate</button>
-          <button class="tab-btn" onclick="switchTab('raw',this)">Raw JSON</button>
+
+        <!-- CONTENT PACKAGE TABS -->
+        <div id="tabs-package" class="output-tabs">
+          <button class="tab-btn active" onclick="switchTab('blog',this,'tabs-package')">Blog Post</button>
+          <button class="tab-btn" onclick="switchTab('emails',this,'tabs-package')">Email Sequence</button>
+          <button class="tab-btn" onclick="switchTab('linkedin',this,'tabs-package')">LinkedIn</button>
+          <button class="tab-btn" onclick="switchTab('gate',this,'tabs-package')">Quality Gate</button>
+          <button class="tab-btn" onclick="switchTab('raw',this,'tabs-package')">Raw JSON</button>
         </div>
 
-        <div class="tab-pane active" id="tab-blog">
-          <div class="output-block">
-            <div class="output-label">Title</div>
-            <div class="output-content" id="out-title"><button class="copy-btn" onclick="copyBlock('out-title',this)">Copy</button></div>
-          </div>
-          <div class="output-block">
-            <div class="output-label">Meta Description</div>
-            <div class="output-content" id="out-meta"><button class="copy-btn" onclick="copyBlock('out-meta',this)">Copy</button></div>
-          </div>
-          <div class="output-block">
-            <div class="output-label">Body HTML (WordPress-ready)</div>
-            <div class="output-content mono-out" id="out-html" style="max-height:400px;overflow-y:auto;"><button class="copy-btn" onclick="copyBlock('out-html',this)">Copy</button></div>
-          </div>
-          <div style="font-family:var(--mono);font-size:0.7rem;color:var(--dim);">Word count: <span id="out-wordcount">—</span></div>
+        <!-- EDU ARTICLE TABS -->
+        <div id="tabs-edu" class="output-tabs" style="display:none;">
+          <button class="tab-btn active" onclick="switchTab('edu-article',this,'tabs-edu')">Article</button>
+          <button class="tab-btn" onclick="switchTab('edu-agitation',this,'tabs-edu')">Agitation Analysis</button>
+          <button class="tab-btn" onclick="switchTab('edu-raw',this,'tabs-edu')">Raw JSON</button>
         </div>
 
-        <div class="tab-pane" id="tab-emails"><div id="emailCards"></div></div>
-
-        <div class="tab-pane" id="tab-linkedin">
-          <div class="output-block">
-            <div class="output-label">LinkedIn Post</div>
-            <div class="output-content" id="out-linkedin"><button class="copy-btn" onclick="copyBlock('out-linkedin',this)">Copy</button></div>
+        <!-- CONTENT PACKAGE PANES -->
+        <div id="panes-package">
+          <div class="tab-pane active" id="tab-blog">
+            <div class="output-block">
+              <div class="output-label">Title</div>
+              <div class="output-content" id="out-title"><button class="copy-btn" onclick="copyBlock('out-title',this)">Copy</button></div>
+            </div>
+            <div class="output-block">
+              <div class="output-label">Meta Description</div>
+              <div class="output-content" id="out-meta"><button class="copy-btn" onclick="copyBlock('out-meta',this)">Copy</button></div>
+            </div>
+            <div class="output-block">
+              <div class="output-label">Body HTML (WordPress-ready)</div>
+              <div class="output-content mono-out" id="out-html" style="max-height:400px;overflow-y:auto;"><button class="copy-btn" onclick="copyBlock('out-html',this)">Copy</button></div>
+            </div>
+            <div style="font-family:var(--mono);font-size:0.7rem;color:var(--dim);">Word count: <span id="out-wordcount">—</span></div>
           </div>
-          <div style="font-family:var(--mono);font-size:0.7rem;color:var(--dim);margin-top:0.5rem;">Place link in first comment, not in the post body.</div>
+
+          <div class="tab-pane" id="tab-emails"><div id="emailCards"></div></div>
+
+          <div class="tab-pane" id="tab-linkedin">
+            <div class="output-block">
+              <div class="output-label">LinkedIn Post</div>
+              <div class="output-content" id="out-linkedin"><button class="copy-btn" onclick="copyBlock('out-linkedin',this)">Copy</button></div>
+            </div>
+            <div style="font-family:var(--mono);font-size:0.7rem;color:var(--dim);margin-top:0.5rem;">Place link in first comment, not in the post body.</div>
+          </div>
+
+          <div class="tab-pane" id="tab-gate"><div class="gate-grid" id="gateGrid"></div></div>
+
+          <div class="tab-pane" id="tab-raw">
+            <div class="output-content mono-out" id="out-raw" style="max-height:500px;overflow-y:auto;"><button class="copy-btn" onclick="copyBlock('out-raw',this)">Copy</button></div>
+          </div>
         </div>
 
-        <div class="tab-pane" id="tab-gate"><div class="gate-grid" id="gateGrid"></div></div>
+        <!-- EDU ARTICLE PANES -->
+        <div id="panes-edu" style="display:none;">
+          <div class="tab-pane active" id="tab-edu-article">
+            <div class="output-block">
+              <div class="output-label">H1 Title</div>
+              <div class="output-content" id="edu-out-title"><button class="copy-btn" onclick="copyBlock('edu-out-title',this)">Copy</button></div>
+            </div>
+            <div class="output-block">
+              <div class="output-label">Meta Description</div>
+              <div class="output-content" id="edu-out-meta"><button class="copy-btn" onclick="copyBlock('edu-out-meta',this)">Copy</button></div>
+            </div>
+            <div class="output-block">
+              <div class="output-label">Article (WordPress HTML)</div>
+              <div class="output-content mono-out" id="edu-out-html" style="max-height:500px;overflow-y:auto;"><button class="copy-btn" onclick="copyBlock('edu-out-html',this)">Copy</button></div>
+            </div>
+            <div style="font-family:var(--mono);font-size:0.7rem;color:var(--dim);">Word count: <span id="edu-out-wordcount">—</span></div>
+          </div>
 
-        <div class="tab-pane" id="tab-raw">
-          <div class="output-content mono-out" id="out-raw" style="max-height:500px;overflow-y:auto;"><button class="copy-btn" onclick="copyBlock('out-raw',this)">Copy</button></div>
+          <div class="tab-pane" id="tab-edu-agitation">
+            <div class="output-block">
+              <div class="output-label">Agitation Analysis</div>
+              <div class="hint" style="margin-bottom:1rem;">The one problem or fear that brought the reader to this page — and the agitation behind the search.</div>
+              <div class="output-content" id="edu-out-agitation" style="white-space:pre-wrap;"><button class="copy-btn" onclick="copyBlock('edu-out-agitation',this)">Copy</button></div>
+            </div>
+          </div>
+
+          <div class="tab-pane" id="tab-edu-raw">
+            <div class="output-content mono-out" id="edu-out-raw" style="max-height:500px;overflow-y:auto;"><button class="copy-btn" onclick="copyBlock('edu-out-raw',this)">Copy</button></div>
+          </div>
         </div>
+
       </div>
     </div>
 
@@ -479,7 +592,7 @@ header {
 <script>
 // ── STATE ────────────────────────────────────────────────────────────────
 let API_KEY = '';
-const tagState = { products: [], proof: [] };
+const tagState = { products: [], proof: [], proofEdu: [] };
 
 // Learned content state
 const learnedSources = []; // { id, name, type, status, rawText }
@@ -531,13 +644,47 @@ function renderTags(key, wrapId, inputId) {
 }
 initTags('productsInput', 'productsWrap', 'products');
 initTags('proofInput', 'proofWrap', 'proof');
+initTags('proofInputEdu', 'proofWrapEdu', 'proofEdu');
+
+// ── MODE ──────────────────────────────────────────────────────────────────
+let currentMode = 'package'; // 'package' | 'edu'
+
+function setMode(mode) {
+  currentMode = mode;
+  document.getElementById('fields-package').style.display = mode === 'package' ? '' : 'none';
+  document.getElementById('fields-edu').style.display = mode === 'edu' ? '' : 'none';
+  document.getElementById('modeBtn-package').classList.toggle('active', mode === 'package');
+  document.getElementById('modeBtn-edu').classList.toggle('active', mode === 'edu');
+  document.getElementById('generateLabel').textContent =
+    mode === 'package' ? 'Generate Content Package' : 'Generate Educational Article';
+  // Update output package panel
+  const pkg = document.getElementById('outputPackagePanel');
+  if (mode === 'edu') {
+    pkg.innerHTML = `
+      <div>📄 &nbsp;Educational article (1,500–2,000w WordPress HTML)</div>
+      <div>🧠 &nbsp;Agitation analysis — the reader's real fear</div>
+      <div style="margin-top:0.8rem;font-size:0.75rem;">Concept → Decision → Risk → Proof framework. Single API call.</div>`;
+  } else {
+    pkg.innerHTML = `
+      <div>📄 &nbsp;Long-form blog post (WordPress HTML)</div>
+      <div>✉️ &nbsp;3-email nurture sequence</div>
+      <div>🔗 &nbsp;LinkedIn post</div>
+      <div style="margin-top:0.8rem;font-size:0.75rem;">All produced in a single API call from the brief below.</div>`;
+  }
+  // Hide output area when switching modes
+  document.getElementById('outputArea').style.display = 'none';
+}
 
 // ── TABS ──────────────────────────────────────────────────────────────────
-function switchTab(name, btn) {
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+function switchTab(name, btn, groupId) {
+  const tabBar = document.getElementById(groupId);
+  const panesId = groupId.replace('tabs-', 'panes-');
+  const panes = document.getElementById(panesId);
+  tabBar.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  panes.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
   btn.classList.add('active');
-  document.getElementById('tab-' + name).classList.add('active');
+  const pane = document.getElementById('tab-' + name);
+  if (pane) pane.classList.add('active');
 }
 
 // ── COPY ──────────────────────────────────────────────────────────────────
@@ -856,7 +1003,102 @@ function buildSystemPrompt() {
   return BASE_SYSTEM_PROMPT + `\n\nLEARNED VOICE PATTERNS (extracted from your existing content — apply these in addition to the core rules above):\n${extractedVoiceRules}`;
 }
 
-// ── QUALITY GATE ──────────────────────────────────────────────────────────
+// ── EDU ARTICLE SYSTEM PROMPT ─────────────────────────────────────────────
+const EDU_SYSTEM_PROMPT = `You are an authoritative and practical consultant in the enterprise software industry. You guide software vendors, product leaders, and technical decision-makers through complex licensing, entitlement, and monetization challenges with clarity and precision. You write to help readers make better decisions and avoid costly mistakes — not to explain terminology for beginners.
+
+AUDIENCE
+Mid-market and enterprise software vendors. Roles: product management, engineering leadership, licensing managers, revenue operations, executive stakeholders.
+
+VOICE AND TONE
+- Speak directly to the reader using "you." Never use "I" or first-person plural.
+- Confident, calm, and advisory.
+- Technically accurate but accessible.
+- No hype. No marketing clichés.
+- Authority comes from clarity, tradeoffs, and real-world consequences.
+
+CORE VOICE RULES — NON-NEGOTIABLE
+1. No weak verbs: leverage, utilize, enable (standalone), empower, facilitate, drive (abstract), streamline.
+2. No trailing sentence constructions. Strong word at or near end of sentence.
+3. No generic B2B language: best-in-class, world-class, robust solution, comprehensive platform, holistic, end-to-end.
+4. Hypothesis language for unconfirmed claims.
+5. Do not use "solution" as a noun.
+6. Do not write a glossary. Do not over-index on features. Do not oversell.
+7. Do not assume greenfield environments. Acknowledge hybrid, on-prem, and embedded realities.
+
+ARTICLE STRUCTURE — REQUIRED
+Follow this exact Concept → Decision → Risk → Proof framework with H1 and H2 headers:
+
+1. CONCEPT (10–15% of content)
+   - Briefly define the topic to establish shared understanding.
+   - Short and neutral. What it is and where it fits. Do not over-educate.
+   - Assume the reader is competent but seeking validation.
+
+2. DECISION (40–50% of content)
+   - Frame as a business decision, not a feature.
+   - Explain when this approach works well and when it does not.
+   - Compare against 1–2 realistic alternatives.
+   - Use practical scenarios, not theory.
+   - Answer: Why do teams choose this? What conditions make it viable? What tradeoffs are accepted?
+
+3. RISK (25–30% of content)
+   - Surface failure modes buyers worry about but vendors avoid discussing.
+   - Be explicit about what breaks at scale.
+   - Cover: revenue leakage, operational fragility, security exposure, organizational friction.
+   - Use language that mirrors internal enterprise conversations.
+   - Answer: What goes wrong in real deployments? What mistakes are expensive to unwind?
+
+4. PROOF / EXECUTION (10–15% of content)
+   - Focus on systems, not features.
+   - Describe architectural requirements and lifecycle considerations.
+   - Introduce Thales Sentinel naturally as an example of how this is solved at enterprise scale — once or twice, without a sales pitch.
+   - Answer: What capabilities must exist? What separates hobbyist tools from enterprise platforms?
+
+CONCLUSION
+Reframe the topic as a strategic capability, not a technical artifact.
+End by reinforcing how the reader should think about the problem going forward.
+
+TARGET LENGTH: 1,500–2,000 words.
+
+AGITATION ANALYSIS (after the article)
+Answer this question in 2–3 paragraphs:
+"What is the one problem, or fear, that brought our reader to this page in the first place? What was the agitation behind the search?"
+Be specific. Name the real fear. Not a summary of the article — the emotional and business trigger that created the search.
+
+OUTPUT FORMAT
+Return ONLY valid JSON. No commentary, no markdown fences:
+{
+  "article": {
+    "title": "string (H1, compelling, SEO-aware)",
+    "meta_description": "string (max 155 chars)",
+    "body_html": "string (WordPress HTML with H1, H2 section headers, paragraphs — no markdown)",
+    "word_count": integer
+  },
+  "agitation_analysis": "string (2–3 paragraphs, plain text)"
+}`;
+
+// ── RENDER — EDU ARTICLE ──────────────────────────────────────────────────
+function renderEduOutput(data, rawJson) {
+  // Switch to edu tabs
+  document.getElementById('tabs-edu').style.display = '';
+  document.getElementById('tabs-package').style.display = 'none';
+  document.getElementById('panes-edu').style.display = '';
+  document.getElementById('panes-package').style.display = 'none';
+
+  // Reset to first tab
+  document.getElementById('tabs-edu').querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', i===0));
+  document.getElementById('panes-edu').querySelectorAll('.tab-pane').forEach((p,i) => p.classList.toggle('active', i===0));
+
+  setText('edu-out-title', data.article?.title || '—');
+  setText('edu-out-meta', data.article?.meta_description || '—');
+  setText('edu-out-html', data.article?.body_html || '—');
+  document.getElementById('edu-out-wordcount').textContent = data.article?.word_count || '—';
+  setText('edu-out-agitation', data.agitation_analysis || '—');
+  setText('edu-out-raw', rawJson);
+
+  document.getElementById('outputArea').style.display = 'block';
+  document.getElementById('outputArea').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 const GATE_CHECKS = [
   { label: 'Blog opens with reader problem — no product in first 20%',
     test: d => !d.blog_post?.body_html?.slice(0, Math.floor((d.blog_post.body_html.length)*0.2)).toLowerCase().includes('sentinel') },
@@ -882,6 +1124,8 @@ const GATE_CHECKS = [
 
 // ── GENERATE ──────────────────────────────────────────────────────────────
 async function generate() {
+  if (currentMode === 'edu') { await generateEdu(); return; }
+
   const angle = document.getElementById('f_angle').value.trim();
   const persona = document.getElementById('f_persona').value.trim();
   const funnel = document.getElementById('f_funnel').value;
@@ -900,21 +1144,16 @@ async function generate() {
     ? `\n\nNote: Learned voice patterns from ${learnedSources.length} source(s) are active in your system prompt. Apply them.`
     : '';
 
-  const userMsg = `Generate a complete content package from this brief:
-
-${JSON.stringify(brief, null, 2)}${voiceNote}
-
-Return only the JSON object as specified. No preamble, no markdown fences.`;
+  const userMsg = `Generate a complete content package from this brief:\n\n${JSON.stringify(brief, null, 2)}${voiceNote}\n\nReturn only the JSON object as specified. No preamble, no markdown fences.`;
 
   setLoading(true);
-  const statusNote = extractedVoiceRules ? `Generating with ${learnedSources.length} learned source(s) active…` : 'Generating content package…';
-  setStatus(statusNote, '');
+  setStatus(extractedVoiceRules ? `Generating with ${learnedSources.length} learned source(s) active…` : 'Generating content package…', '');
 
   try {
     const rawText = await callClaudeMessages([{ role:'user', content: userMsg }], 8000, buildSystemPrompt());
     const clean = rawText.replace(/^```json\s*/,'').replace(/\s*```$/,'').trim();
     const parsed = JSON.parse(clean);
-    renderOutput(parsed, clean);
+    renderPackageOutput(parsed, clean);
     setStatus('Content package ready.' + (extractedVoiceRules ? ` (${learnedSources.length} voice source(s) applied)` : ''), 'ok');
   } catch(e) {
     setStatus('Error: ' + e.message, 'error');
@@ -923,8 +1162,51 @@ Return only the JSON object as specified. No preamble, no markdown fences.`;
   }
 }
 
-// ── RENDER ────────────────────────────────────────────────────────────────
-function renderOutput(data, rawJson) {
+async function generateEdu() {
+  const topic = document.getElementById('e_topic').value.trim();
+  const audience = document.getElementById('e_audience').value.trim();
+  if (!topic || !audience) { setStatus('Topic and Audience Role are required.', 'error'); return; }
+
+  const brief = {
+    topic,
+    audience,
+    keyword: document.getElementById('e_keyword').value.trim(),
+    scenarios: document.getElementById('e_scenarios').value.trim(),
+    proof_points: tagState.proofEdu,
+    cta: document.getElementById('e_cta').value.trim() || 'Explore Sentinel',
+    competitive: document.getElementById('e_competitive').checked
+  };
+
+  const voiceNote = extractedVoiceRules
+    ? `\n\nLEARNED VOICE PATTERNS — apply these throughout:\n${extractedVoiceRules}`
+    : '';
+
+  const userMsg = `Write an educational article using the Concept → Decision → Risk → Proof framework. Here is the brief:\n\n${JSON.stringify(brief, null, 2)}${voiceNote}\n\nReturn only the JSON object as specified. No preamble, no markdown fences.`;
+
+  setLoading(true);
+  setStatus('Generating educational article…', '');
+
+  try {
+    const rawText = await callClaudeMessages([{ role:'user', content: userMsg }], 10000, EDU_SYSTEM_PROMPT);
+    const clean = rawText.replace(/^```json\s*/,'').replace(/\s*```$/,'').trim();
+    const parsed = JSON.parse(clean);
+    renderEduOutput(parsed, clean);
+    setStatus('Educational article ready.', 'ok');
+  } catch(e) {
+    setStatus('Error: ' + e.message, 'error');
+  } finally {
+    setLoading(false);
+  }
+}
+
+// ── RENDER — CONTENT PACKAGE ──────────────────────────────────────────────
+function renderPackageOutput(data, rawJson) {
+  // Switch to package tabs
+  document.getElementById('tabs-package').style.display = '';
+  document.getElementById('tabs-edu').style.display = 'none';
+  document.getElementById('panes-package').style.display = '';
+  document.getElementById('panes-edu').style.display = 'none';
+
   setText('out-title', data.blog_post?.title||'—');
   setText('out-meta', data.blog_post?.meta_description||'—');
   setText('out-html', data.blog_post?.body_html||'—');
