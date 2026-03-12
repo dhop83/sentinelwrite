@@ -6,6 +6,7 @@
 <title>Sentinel · Agent 2 Writer</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Instrument+Serif:ital@0;1&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -251,7 +252,7 @@ header {
         <div class="product">Agent 2 · Writer</div>
       </div>
     </div>
-    <div class="header-badge">Content Engine v2.0</div>
+    <div class="header-badge">Content Engine v2.1</div>
   </header>
 
   <!-- API GATE -->
@@ -296,7 +297,7 @@ header {
               <input type="url" id="urlInput" placeholder="https://cpl.thalesgroup.com/blog/..." />
               <button class="btn btn-ghost btn-sm" onclick="learnFromUrl()">Fetch</button>
             </div>
-            <div class="hint" style="margin-top:0.4rem;">Paste any blog post, article, or learning hub page. The app reads its full text and extracts voice patterns.</div>
+            <div class="hint" style="margin-top:0.4rem;">Paste any blog post, article, or Learning Hub page. The app fetches and reads the full page text, then extracts voice patterns.</div>
           </div>
 
           <!-- FILE UPLOAD -->
@@ -562,38 +563,38 @@ function handleFileSelect(e) { if (e.target.files.length) processFile(e.target.f
 
 // ── FILE READING ──────────────────────────────────────────────────────────
 async function processFile(file) {
-  const allowedTypes = ['text/plain', 'text/markdown', 'application/pdf',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'application/msword'];
   const allowedExts = ['.txt', '.md', '.pdf', '.docx', '.doc'];
   const ext = '.' + file.name.split('.').pop().toLowerCase();
-
-  if (!allowedExts.includes(ext)) {
-    alert('Supported formats: PDF, Word (.docx), TXT, Markdown'); return;
-  }
+  if (!allowedExts.includes(ext)) { alert('Supported formats: PDF, Word (.docx), TXT, Markdown'); return; }
 
   const id = 'src_' + Date.now();
   addLearnedItem(id, file.name, 'file', 'processing');
 
   try {
-    let text = '';
-
     if (ext === '.txt' || ext === '.md') {
-      text = await file.text();
-    } else if (ext === '.pdf') {
-      text = await readPdfAsBase64(file);
-    } else if (ext === '.docx' || ext === '.doc') {
-      text = await readDocxAsBase64(file);
-    }
+      // Plain text — read directly
+      const text = await file.text();
+      await extractVoiceFromText(id, file.name, text);
 
-    updateLearnedItem(id, 'processing', text);
-    await extractVoiceFromSource(id, file.name, text, ext === '.pdf' || ext === '.docx');
+    } else if (ext === '.pdf') {
+      // PDF — send as base64 document; Claude API supports application/pdf natively
+      const base64 = await fileToBase64(file);
+      await extractVoiceFromPdf(id, file.name, base64);
+
+    } else if (ext === '.docx' || ext === '.doc') {
+      // DOCX — extract plain text via mammoth.js (Claude API does not accept docx document blocks)
+      if (typeof mammoth === 'undefined') throw new Error('mammoth.js not loaded — reload the page');
+      const arrayBuffer = await file.arrayBuffer();
+      const result = await mammoth.extractRawText({ arrayBuffer });
+      if (!result.value || result.value.trim().length < 20) throw new Error('Could not extract text from document');
+      await extractVoiceFromText(id, file.name, result.value);
+    }
   } catch (err) {
     updateLearnedItemStatus(id, 'error', err.message);
   }
 }
 
-async function readPdfAsBase64(file) {
+async function fileToBase64(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result.split(',')[1]);
@@ -602,115 +603,68 @@ async function readPdfAsBase64(file) {
   });
 }
 
-async function readDocxAsBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result.split(',')[1]);
-    reader.onerror = () => reject(new Error('Could not read file'));
-    reader.readAsDataURL(file);
-  });
-}
-
-// ── URL SCRAPING ──────────────────────────────────────────────────────────
+// ── URL FETCH ─────────────────────────────────────────────────────────────
 async function learnFromUrl() {
   const url = document.getElementById('urlInput').value.trim();
   if (!url || !url.startsWith('http')) { alert('Enter a valid URL starting with http'); return; }
 
   const id = 'src_' + Date.now();
-  const shortName = url.replace(/^https?:\/\//, '').split('/').pop() || url.replace(/^https?:\/\//, '').substring(0, 40);
+  const shortName = url.replace(/^https?:\/\//, '').replace(/\/$/, '').split('/').pop() || url.replace(/^https?:\/\//, '').substring(0, 50);
   addLearnedItem(id, shortName, 'url', 'processing');
   document.getElementById('urlInput').value = '';
 
-  // Use Claude to fetch + extract from the URL via a prompt
-  // We pass the URL to Claude and ask it to treat it as content to analyze
-  // Since we can't fetch cross-origin, we ask Claude to extract patterns
-  // from what it knows and what we describe
-  await extractVoiceFromUrl(id, url, shortName);
+  try {
+    // Use allorigins.win CORS proxy to fetch the actual page HTML
+    const proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(url);
+    const res = await fetch(proxyUrl);
+    if (!res.ok) throw new Error('Could not fetch page (status ' + res.status + ')');
+    const data = await res.json();
+    if (!data.contents) throw new Error('No content returned from URL');
+
+    // Strip HTML tags to get readable plain text
+    const tmp = document.createElement('div');
+    tmp.innerHTML = data.contents;
+    // Remove script/style nodes
+    tmp.querySelectorAll('script, style, nav, header, footer, aside').forEach(n => n.remove());
+    const text = tmp.innerText || tmp.textContent || '';
+    const clean = text.replace(/\s{3,}/g, '\n\n').trim();
+
+    if (clean.length < 100) throw new Error('Page returned too little readable text — try a different URL');
+
+    await extractVoiceFromText(id, shortName, clean);
+  } catch (err) {
+    updateLearnedItemStatus(id, 'error', err.message);
+  }
 }
 
-// ── EXTRACT VOICE FROM URL (via Claude) ───────────────────────────────────
-async function extractVoiceFromUrl(id, url, name) {
-  const prompt = `You are a voice and style analyst. I want you to visit this URL and extract the voice, tone, and writing style patterns from the content:
-
-URL: ${url}
-
-Please analyze the writing style at this URL and extract:
-1. SENTENCE PATTERNS: How are sentences constructed? Short/long? Active/passive? Any recurring structures?
-2. VOCABULARY CHOICES: What specific words or phrases appear? Industry terms used? Any phrases avoided?
-3. OPENING HOOKS: How does the content open? What pattern does it follow?
-4. ARGUMENT STRUCTURE: How are points made? Data-first? Problem-first? Outcome-first?
-5. TONE MARKERS: Confident? Cautious? Peer-to-peer? Authoritative?
-6. WHAT TO REPLICATE: List 5–8 specific, concrete stylistic rules extracted from this content that a writer should follow.
-
-If you cannot access the URL directly, analyze based on the URL structure and any content you know from your training data about this source.
-
-Return ONLY a structured list of voice rules, one per line, starting each with a dash. No preamble. No section headers. Just the rules.`;
-
+// ── EXTRACT VOICE — PLAIN TEXT ────────────────────────────────────────────
+async function extractVoiceFromText(id, name, text) {
+  const truncated = text.length > 14000 ? text.substring(0, 14000) + '\n[truncated]' : text;
+  const messages = [{
+    role: 'user',
+    content: `Analyze the writing style and voice in this content:\n\n${truncated}\n\nExtract 5–8 specific, concrete stylistic rules a writer should follow to replicate this voice.\n\nReturn ONLY a dash-separated list of rules. One per line. No headers. No preamble. Each line starts with a dash.`
+  }];
   try {
-    const res = await callClaude(prompt, 800);
-    const rules = res.trim();
+    const rules = (await callClaudeMessages(messages, 800)).trim();
     updateLearnedItemStatus(id, 'done', name);
-    learnedSources.push({ id, name, type: 'url', rules });
+    learnedSources.push({ id, name, type: 'text', rules });
     await recompileVoiceRules();
   } catch (err) {
     updateLearnedItemStatus(id, 'error', err.message);
   }
 }
 
-// ── EXTRACT VOICE FROM FILE (via Claude) ──────────────────────────────────
-async function extractVoiceFromSource(id, name, contentOrBase64, isBinary) {
-  let messages;
-
-  if (isBinary) {
-    // Send as document to Claude
-    const ext = name.split('.').pop().toLowerCase();
-    const mediaType = ext === 'pdf' ? 'application/pdf'
-      : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-
-    messages = [{
-      role: 'user',
-      content: [
-        {
-          type: 'document',
-          source: { type: 'base64', media_type: mediaType, data: contentOrBase64 }
-        },
-        {
-          type: 'text',
-          text: `Analyze the writing style and voice in this document. Extract:
-1. SENTENCE PATTERNS: Construction style, length, active/passive tendencies
-2. VOCABULARY: Specific words/phrases used, terms avoided, industry language
-3. OPENING HOOKS: How content begins, what pattern it follows
-4. ARGUMENT STRUCTURE: How points are made and supported
-5. TONE: Confident/cautious, peer/authoritative, formal/conversational
-6. RULES TO REPLICATE: 5–8 specific, concrete stylistic rules a writer should follow
-
-Return ONLY a dash-separated list of voice rules. No headers. No preamble. Just the rules, one per line starting with a dash.`
-        }
-      ]
-    }];
-  } else {
-    // Plain text — truncate if very long
-    const truncated = contentOrBase64.length > 12000
-      ? contentOrBase64.substring(0, 12000) + '\n[truncated for analysis]'
-      : contentOrBase64;
-
-    messages = [{
-      role: 'user',
-      content: `Analyze the writing style and voice in this content:\n\n${truncated}\n\nExtract:
-1. SENTENCE PATTERNS: Construction style, length, active/passive tendencies
-2. VOCABULARY: Specific words/phrases used, terms avoided, industry language
-3. OPENING HOOKS: How content begins, what pattern it follows
-4. ARGUMENT STRUCTURE: How points are made and supported
-5. TONE: Confident/cautious, peer/authoritative, formal/conversational
-6. RULES TO REPLICATE: 5–8 specific, concrete stylistic rules a writer should follow
-
-Return ONLY a dash-separated list of voice rules. No headers. No preamble. Just the rules, one per line starting with a dash.`
-    }];
-  }
-
+// ── EXTRACT VOICE — PDF (base64 document block) ───────────────────────────
+async function extractVoiceFromPdf(id, name, base64) {
+  const messages = [{
+    role: 'user',
+    content: [
+      { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } },
+      { type: 'text', text: 'Analyze the writing style and voice in this document. Extract 5–8 specific, concrete stylistic rules a writer should follow to replicate this voice.\n\nReturn ONLY a dash-separated list of rules. One per line. No headers. No preamble. Each line starts with a dash.' }
+    ]
+  }];
   try {
-    const res = await callClaudeMessages(messages, 800);
-    const rules = res.trim();
+    const rules = (await callClaudeMessages(messages, 800)).trim();
     updateLearnedItemStatus(id, 'done', name);
     learnedSources.push({ id, name, type: 'file', rules });
     await recompileVoiceRules();
