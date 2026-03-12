@@ -561,38 +561,18 @@ function handleDrop(e) {
 }
 function handleFileSelect(e) { if (e.target.files.length) processFile(e.target.files[0]); }
 
-// ── PDF.JS LAZY LOAD ──────────────────────────────────────────────────────
-async function loadPdfJs() {
-  if (window.pdfjsLib) return window.pdfjsLib;
-  await new Promise((resolve, reject) => {
-    const s = document.createElement('script');
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-    s.onload = resolve; s.onerror = reject;
-    document.head.appendChild(s);
-  });
-  window.pdfjsLib.GlobalWorkerOptions.workerSrc =
-    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-  return window.pdfjsLib;
-}
-
-async function extractPdfText(file) {
-  const pdfjsLib = await loadPdfJs();
-  const arrayBuffer = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-  let fullText = '';
-  for (let i = 1; i <= pdf.numPages; i++) {
-    const page = await pdf.getPage(i);
-    const content = await page.getTextContent();
-    fullText += content.items.map(item => item.str).join(' ') + '\n';
-  }
-  return fullText.trim();
-}
-
 // ── FILE READING ──────────────────────────────────────────────────────────
 async function processFile(file) {
   const allowedExts = ['.txt', '.md', '.pdf', '.docx', '.doc'];
   const ext = '.' + file.name.split('.').pop().toLowerCase();
   if (!allowedExts.includes(ext)) { alert('Supported formats: PDF, Word (.docx), TXT, Markdown'); return; }
+
+  // PDF size gate — base64 encoding inflates size ~33%, API limit is ~20MB encoded
+  if (ext === '.pdf' && file.size > 12 * 1024 * 1024) {
+    const mb = (file.size / 1024 / 1024).toFixed(1);
+    alert(`PDF is too large (${mb} MB — max 12 MB). Export selected pages or use a shorter document.`);
+    return;
+  }
 
   const id = 'src_' + Date.now();
   addLearnedItem(id, file.name, 'file', 'processing');
@@ -604,10 +584,9 @@ async function processFile(file) {
       await extractVoiceFromText(id, file.name, text);
 
     } else if (ext === '.pdf') {
-      // Extract text client-side via PDF.js — avoids API size limits entirely
-      const text = await extractPdfText(file);
-      if (!text || text.length < 50) throw new Error('Could not extract readable text from PDF — it may be image-only or password protected');
-      await extractVoiceFromText(id, file.name, text);
+      // Send PDF as base64 document block — Claude API natively reads PDF content
+      const base64 = await fileToBase64(file);
+      await extractVoiceFromPdf(id, file.name, base64);
 
     } else if (ext === '.docx' || ext === '.doc') {
       if (typeof mammoth === 'undefined') throw new Error('mammoth.js not loaded — reload the page');
@@ -617,9 +596,44 @@ async function processFile(file) {
       await extractVoiceFromText(id, file.name, result.value);
     }
   } catch (err) {
-    updateLearnedItemStatus(id, 'error', err.message);
+    updateLearnedItemStatus(id, 'error', err.message || String(err));
   }
 }
+
+async function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = () => reject(new Error('FileReader failed — could not read file'));
+    reader.readAsDataURL(file);
+  });
+}
+
+// ── EXTRACT VOICE — PDF via Claude document block ─────────────────────────
+async function extractVoiceFromPdf(id, name, base64) {
+  const messages = [{
+    role: 'user',
+    content: [
+      {
+        type: 'document',
+        source: { type: 'base64', media_type: 'application/pdf', data: base64 }
+      },
+      {
+        type: 'text',
+        text: 'Analyze the writing style and voice in this document. Extract 5–8 specific, concrete stylistic rules a writer should follow to replicate this voice.\n\nReturn ONLY a dash-separated list of rules. One per line. No headers. No preamble. Each line starts with a dash.'
+      }
+    ]
+  }];
+  try {
+    const rules = (await callClaudeMessages(messages, 800)).trim();
+    updateLearnedItemStatus(id, 'done', name);
+    learnedSources.push({ id, name, type: 'file', rules });
+    await recompileVoiceRules();
+  } catch (err) {
+    updateLearnedItemStatus(id, 'error', err.message || String(err));
+  }
+}
+
 
 // ── URL FETCH ─────────────────────────────────────────────────────────────
 async function learnFromUrl() {
@@ -967,20 +981,38 @@ async function callClaudeMessages(messages, maxTokens = 1000, systemPrompt = nul
   };
   if (systemPrompt) body.system = systemPrompt;
 
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': API_KEY,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true'
-    },
-    body: JSON.stringify(body)
-  });
+  // Guard: warn if request body exceeds ~20MB (API hard limit)
+  const bodyStr = JSON.stringify(body);
+  if (bodyStr.length > 20 * 1024 * 1024) {
+    throw new Error('Request too large for API (>20 MB). Use a smaller file or shorter document.');
+  }
+
+  let res;
+  try {
+    res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': API_KEY,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: bodyStr
+    });
+  } catch (networkErr) {
+    throw new Error('Network error — check your connection: ' + networkErr.message);
+  }
 
   if (!res.ok) {
-    const err = await res.json();
-    throw new Error(err.error?.message || `API error ${res.status}`);
+    let errMsg = `API error ${res.status}`;
+    try {
+      const errBody = await res.json();
+      errMsg = errBody.error?.message || errMsg;
+    } catch (_) {
+      // Response wasn't JSON (e.g. 413 from proxy) — use status text
+      errMsg = `API error ${res.status}: ${res.statusText || 'request rejected'}`;
+    }
+    throw new Error(errMsg);
   }
 
   const data = await res.json();
